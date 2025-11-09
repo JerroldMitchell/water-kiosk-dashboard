@@ -1,0 +1,656 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tusafishe Customer Service Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/appwrite@13.0.1"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f5f7fa;
+            color: #333;
+            line-height: 1.6;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 1rem;
+            text-align: center;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 2rem auto;
+            padding: 0 1rem;
+        }
+        
+        .stats-section {
+            background: white;
+            padding: 2rem;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            margin-bottom: 2rem;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1.5rem;
+        }
+        
+        .stat-card {
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            padding: 1.5rem;
+            border-radius: 10px;
+            text-align: center;
+            border: 2px solid #e1e5e9;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        
+        .stat-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+        
+        .stat-number {
+            font-size: 2.5rem;
+            font-weight: bold;
+            color: #667eea;
+            margin-bottom: 0.5rem;
+        }
+        
+        .stat-label {
+            font-size: 1rem;
+            color: #666;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .stat-card.active .stat-number {
+            color: #28a745;
+        }
+        
+        .stat-card.inactive .stat-number {
+            color: #dc3545;
+        }
+        
+        .stat-card.registered .stat-number {
+            color: #17a2b8;
+        }
+        
+        .search-section {
+            background: white;
+            padding: 2rem;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            margin-bottom: 2rem;
+        }
+        
+        .search-form {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        
+        .form-group {
+            flex: 1;
+            min-width: 250px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+            color: #555;
+        }
+        
+        input[type="text"], input[type="tel"] {
+            width: 100%;
+            padding: 0.8rem;
+            border: 2px solid #e1e5e9;
+            border-radius: 5px;
+            font-size: 1rem;
+            transition: border-color 0.3s;
+        }
+        
+        input[type="text"]:focus, input[type="tel"]:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        .btn {
+            padding: 0.8rem 2rem;
+            border: none;
+            border-radius: 5px;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-weight: 600;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+        
+        .btn-clear {
+            background: #6c757d;
+            color: white;
+        }
+        
+        .btn-clear:hover {
+            background: #5a6268;
+        }
+        
+        .results-section {
+            background: white;
+            padding: 2rem;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            display: none;
+        }
+        
+        .customer-card {
+            border: 1px solid #e1e5e9;
+            border-radius: 6px;
+            padding: 0.8rem;
+            margin-bottom: 0.5rem;
+            background: #f8f9fa;
+        }
+        
+        .customer-card.active {
+            border-color: #28a745;
+            background: #d4edda;
+        }
+        
+        .customer-card.inactive {
+            border-color: #dc3545;
+            background: #f8d7da;
+        }
+        
+        .customer-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.5rem;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+        }
+        
+        .customer-phone {
+            font-size: 1.1rem;
+            font-weight: bold;
+            color: #333;
+        }
+        
+        .status-badge {
+            padding: 0.2rem 0.6rem;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+        
+        .status-active {
+            background: #28a745;
+            color: white;
+        }
+        
+        .status-inactive {
+            background: #dc3545;
+            color: white;
+        }
+        
+        .status-unregistered {
+            background: #ffc107;
+            color: #333;
+        }
+        
+        .customer-details {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+            gap: 0.6rem;
+        }
+        
+        .detail-item {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .detail-label {
+            font-size: 0.8rem;
+            color: #666;
+            margin-bottom: 0.1rem;
+            font-weight: 600;
+        }
+        
+        .detail-value {
+            font-size: 0.95rem;
+            font-weight: bold;
+            color: #333;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 2rem;
+            color: #666;
+        }
+        
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 1rem;
+            border-radius: 5px;
+            margin: 1rem 0;
+            border: 1px solid #f5c6cb;
+        }
+        
+        .no-results {
+            text-align: center;
+            padding: 2rem;
+            color: #666;
+            font-style: italic;
+        }
+        
+        @media (max-width: 768px) {
+            .search-form {
+                flex-direction: column;
+            }
+            
+            .form-group {
+                min-width: 100%;
+            }
+            
+            .customer-header {
+                flex-direction: column;
+                text-align: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>💧 Tusafishe Customer Service Dashboard</h1>
+        <p>Search and view customer information</p>
+    </div>
+    
+    <div class="container">
+        <div class="stats-section">
+            <h2 style="margin-bottom: 1.5rem;">Customer Statistics</h2>
+            <div class="stats-grid" id="statsGrid">
+                <div class="stat-card">
+                    <div class="stat-number" id="totalCustomers">-</div>
+                    <div class="stat-label">Total Customers</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="activeCustomers">-</div>
+                    <div class="stat-label">Active - Has Access</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="registeredCustomers">-</div>
+                    <div class="stat-label">Registered Only</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="unregisteredCustomers">-</div>
+                    <div class="stat-label">Unregistered</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="search-section">
+            <h2 style="margin-bottom: 1.5rem;">Search Customers</h2>
+            <form class="search-form" id="searchForm">
+                <div class="form-group">
+                    <label for="phoneSearch">Phone Number</label>
+                    <input type="tel" id="phoneSearch" placeholder="700000000, 0700000000, or 0700* (wildcards - +256 assumed)">
+                </div>
+                <div class="form-group">
+                    <label for="accountSearch">Account ID</label>
+                    <input type="text" id="accountSearch" placeholder="TSF123456">
+                </div>
+                <div>
+                    <button type="submit" class="btn btn-primary">🔍 Search</button>
+                    <button type="button" class="btn btn-clear" onclick="clearSearch()">Clear</button>
+                </div>
+            </form>
+        </div>
+        
+        <div class="results-section" id="resultsSection">
+            <h2>Search Results</h2>
+            <div id="resultsContainer"></div>
+        </div>
+    </div>
+
+    <script>
+        // Appwrite Configuration
+        const { Client, Databases, Query } = Appwrite;
+        
+        const client = new Client();
+        client
+            .setEndpoint('http://localhost/v1')
+            .setProject('689107c288885e90c039');
+        
+        const databases = new Databases(client);
+        
+        const DATABASE_ID = '6864aed388d20c69a461';
+        const CUSTOMERS_COLLECTION_ID = 'customers';
+        
+        // Search functionality
+        document.getElementById('searchForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const phoneSearch = document.getElementById('phoneSearch').value.trim();
+            const accountSearch = document.getElementById('accountSearch').value.trim();
+            
+            if (!phoneSearch && !accountSearch) {
+                showError('Please enter a phone number or account ID to search.');
+                return;
+            }
+            
+            showLoading();
+            
+            try {
+                let customers = [];
+                
+                if (phoneSearch) {
+                    const normalizedPhone = normalizePhone(phoneSearch);
+                    const phoneResults = await searchByPhone(normalizedPhone);
+                    customers = customers.concat(phoneResults);
+                }
+                
+                if (accountSearch) {
+                    const accountResults = await searchByAccount(accountSearch);
+                    customers = customers.concat(accountResults);
+                }
+                
+                // Remove duplicates
+                const uniqueCustomers = customers.filter((customer, index, self) => 
+                    index === self.findIndex(c => c.$id === customer.$id)
+                );
+                
+                displayResults(uniqueCustomers);
+                
+            } catch (error) {
+                console.error('Search error:', error);
+                showError('Search failed. Please try again.');
+            }
+        });
+        
+        function normalizePhone(phone) {
+            // Handle wildcards
+            if (phone.includes('*')) {
+                const parts = phone.split('*');
+                const prefix = parts[0];
+                
+                // Clean the prefix but don't auto-add +256 for short patterns
+                let normalizedPrefix = prefix.replace(/\s+/g, '').replace(/[^\d+]/g, '');
+                
+                // Normalize to +256 format for Ugandan numbers
+                if (normalizedPrefix.startsWith('0') && normalizedPrefix.length > 3) {
+                    normalizedPrefix = '+256' + normalizedPrefix.substring(1);
+                } else if (normalizedPrefix.startsWith('256') && normalizedPrefix.length > 6) {
+                    normalizedPrefix = '+' + normalizedPrefix;
+                } else if (normalizedPrefix.startsWith('+256')) {
+                    // Already normalized
+                } else if (normalizedPrefix.length >= 6 && !normalizedPrefix.startsWith('+')) {
+                    // For patterns like "755121*" - assume +256
+                    normalizedPrefix = '+256' + normalizedPrefix;
+                }
+                
+                return normalizedPrefix + '*';
+            }
+            
+            // Convert various phone formats to +256 format (Uganda)
+            phone = phone.replace(/\s+/g, '').replace(/[^\d+]/g, '');
+            
+            if (phone.startsWith('0')) {
+                // Remove leading 0 and add +256
+                return '+256' + phone.substring(1);
+            } else if (phone.startsWith('256')) {
+                // Add + prefix
+                return '+' + phone;
+            } else if (phone.startsWith('+256')) {
+                // Already normalized
+                return phone;
+            } else if (phone.length === 9) {
+                // Assume 9-digit number is Ugandan (without country code)
+                return '+256' + phone;
+            }
+            
+            return phone;
+        }
+        
+        async function searchByPhone(phone) {
+            try {
+                console.log('Searching for phone:', phone);
+                
+                if (phone.includes('*')) {
+                    // Wildcard search - try multiple patterns
+                    const prefix = phone.replace('*', '');
+                    console.log('Wildcard search with prefix:', prefix);
+                    
+                    // Try the normalized prefix first
+                    let response = await databases.listDocuments(
+                        DATABASE_ID,
+                        CUSTOMERS_COLLECTION_ID,
+                        [Query.startsWith('phone_number', prefix)]
+                    );
+                    
+                    // If no results and the pattern could be +256 format, try that too
+                    if (response.documents.length === 0 && !prefix.startsWith('+256') && !prefix.startsWith('0')) {
+                        const altPrefix = '+256' + prefix;
+                        console.log('Trying alternative prefix:', altPrefix);
+                        response = await databases.listDocuments(
+                            DATABASE_ID,
+                            CUSTOMERS_COLLECTION_ID,
+                            [Query.startsWith('phone_number', altPrefix)]
+                        );
+                    }
+                    
+                    console.log('Phone search response:', response);
+                    return response.documents;
+                } else {
+                    // Exact match
+                    const response = await databases.listDocuments(
+                        DATABASE_ID,
+                        CUSTOMERS_COLLECTION_ID,
+                        [Query.equal('phone_number', phone)]
+                    );
+                    console.log('Phone search response:', response);
+                    return response.documents;
+                }
+            } catch (error) {
+                console.error('Phone search error:', error);
+                showError(`Phone search failed: ${error.message}`);
+                return [];
+            }
+        }
+        
+        async function searchByAccount(accountId) {
+            try {
+                console.log('Searching for account:', accountId);
+                const response = await databases.listDocuments(
+                    DATABASE_ID,
+                    CUSTOMERS_COLLECTION_ID,
+                    [Query.equal('account_id', accountId)]
+                );
+                console.log('Account search response:', response);
+                return response.documents;
+            } catch (error) {
+                console.error('Account search error:', error);
+                showError(`Account search failed: ${error.message}`);
+                return [];
+            }
+        }
+        
+        function displayResults(customers) {
+            const resultsContainer = document.getElementById('resultsContainer');
+            const resultsSection = document.getElementById('resultsSection');
+            
+            if (customers.length === 0) {
+                resultsContainer.innerHTML = '<div class="no-results">No customers found matching your search criteria.</div>';
+            } else {
+                resultsContainer.innerHTML = customers.map(customer => createCustomerCard(customer)).join('');
+            }
+            
+            resultsSection.style.display = 'block';
+        }
+        
+        function createCustomerCard(customer) {
+            const isActive = customer.active;
+            const isRegistered = customer.is_registered;
+            const statusClass = isActive ? 'active' : 'inactive';
+            const statusBadge = getStatusBadge(isRegistered, isActive);
+            
+            return `
+                <div class="customer-card ${statusClass}">
+                    <div class="customer-header">
+                        <div class="customer-phone">${customer.phone_number}</div>
+                        <div class="${statusBadge.class}">${statusBadge.text}</div>
+                    </div>
+                    <div class="customer-details">
+                        <div class="detail-item">
+                            <span class="detail-label">Account ID</span>
+                            <span class="detail-value">${customer.account_id || 'Not assigned'}</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Payment Date</span>
+                            <span class="detail-value">${formatPaymentDate(customer.payment_date)}</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Registration State</span>
+                            <span class="detail-value">${customer.registration_state || 'New'}</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Created</span>
+                            <span class="detail-value">${formatDate(customer.created_at)}</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Semester Access</span>
+                            <span class="detail-value">${customer.active ? 'Current Semester' : 'No Access'}</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+        
+        function getStatusBadge(isRegistered, isActive) {
+            if (!isRegistered) {
+                return { class: 'status-badge status-unregistered', text: 'Unregistered' };
+            } else if (isActive) {
+                return { class: 'status-badge status-active', text: 'Has Access' };
+            } else {
+                return { class: 'status-badge status-inactive', text: 'Registered Only' };
+            }
+        }
+        
+        function formatDate(dateString) {
+            if (!dateString) return 'Unknown';
+            const date = new Date(dateString);
+            return date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
+        }
+        
+        function formatPaymentDate(paymentDate) {
+            if (!paymentDate) return 'No payment';
+            
+            // Check if it's a timestamp (numeric string)
+            if (/^\d+$/.test(paymentDate)) {
+                const timestamp = parseInt(paymentDate) * 1000; // Convert to milliseconds
+                const date = new Date(timestamp);
+                return date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
+            }
+            
+            // Handle ISO format for backward compatibility
+            const date = new Date(paymentDate);
+            if (!isNaN(date.getTime())) {
+                return date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
+            }
+            
+            return paymentDate; // Return as-is if we can't parse it
+        }
+        
+        function showLoading() {
+            const resultsContainer = document.getElementById('resultsContainer');
+            const resultsSection = document.getElementById('resultsSection');
+            
+            resultsContainer.innerHTML = '<div class="loading">🔍 Searching customers...</div>';
+            resultsSection.style.display = 'block';
+        }
+        
+        function showError(message) {
+            const resultsContainer = document.getElementById('resultsContainer');
+            const resultsSection = document.getElementById('resultsSection');
+            
+            resultsContainer.innerHTML = `<div class="error">❌ ${message}</div>`;
+            resultsSection.style.display = 'block';
+        }
+        
+        function clearSearch() {
+            document.getElementById('phoneSearch').value = '';
+            document.getElementById('accountSearch').value = '';
+            document.getElementById('resultsSection').style.display = 'none';
+        }
+        
+        async function loadStatistics() {
+            try {
+                // Load all customers to calculate stats
+                const response = await databases.listDocuments(
+                    DATABASE_ID,
+                    CUSTOMERS_COLLECTION_ID,
+                    []
+                );
+                
+                const customers = response.documents;
+                const total = customers.length;
+                const active = customers.filter(c => c.active === true).length;
+                const registered = customers.filter(c => c.is_registered === true && !c.active).length;
+                const unregistered = customers.filter(c => !c.is_registered).length;
+                
+                // Update the display
+                document.getElementById('totalCustomers').textContent = total;
+                document.getElementById('activeCustomers').textContent = active;
+                document.getElementById('registeredCustomers').textContent = registered;
+                document.getElementById('unregisteredCustomers').textContent = unregistered;
+                
+                // Add color classes to stat cards
+                document.querySelector('#activeCustomers').parentElement.classList.add('active');
+                document.querySelector('#unregisteredCustomers').parentElement.classList.add('inactive');
+                document.querySelector('#registeredCustomers').parentElement.classList.add('registered');
+                
+                console.log('Statistics loaded:', { total, active, registered, unregistered });
+                
+            } catch (error) {
+                console.error('Failed to load statistics:', error);
+                // Show error in stats
+                ['totalCustomers', 'activeCustomers', 'registeredCustomers', 'unregisteredCustomers'].forEach(id => {
+                    document.getElementById(id).textContent = '?';
+                });
+            }
+        }
+        
+        // Load statistics when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            loadStatistics();
+        });
+        
+        // Auto-focus on phone input
+        document.getElementById('phoneSearch').focus();
+    </script>
+</body>
+</html>
