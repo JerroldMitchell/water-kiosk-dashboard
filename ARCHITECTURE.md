@@ -154,7 +154,23 @@ Currently deployed on a home-based server with internet access restrictions. Wil
 - **Launch**: `cd ~/appwrite && docker-compose up -d`
 - **Status**: ✅ ACTIVE
 
-### 4. Analytics Dashboard
+### 4. Appwrite Proxy Server
+- **Project**: `proxy_server`
+- **File**: `appwrite_proxy.py`
+- **Port**: 3000
+- **Purpose**: Secure interface for students to access Appwrite without needing API key
+- **Features**:
+  - Intercepts student requests
+  - Automatically adds authentication
+  - Restricts access to allowed collections only (`customers`)
+  - Validates database and collection IDs
+  - Supports full CRUD operations
+  - Comprehensive logging and error handling
+- **Exposed via**: ngrok tunnel (requires configuration)
+- **Students Access**: HTTP requests to proxy (no API key needed)
+- **Status**: ✅ ACTIVE (for student development)
+
+### 5. Analytics Dashboard
 - **Project**: `water-kiosk-analytics`
 - **File**: `analytics_server.py`
 - **Port**: 8082
@@ -166,7 +182,7 @@ Currently deployed on a home-based server with internet access restrictions. Wil
 - **No external access needed**
 - **Status**: ✅ ACTIVE (internal use)
 
-### 5. Customer Service Dashboard
+### 6. Customer Service Dashboard
 - **Project**: `water-kiosk-dashboard`
 - **File**: `customer-dashboard.html` + `serve_dashboard.py`
 - **Port**: 8080
@@ -416,78 +432,292 @@ Once moved to a proper data center:
 
 ## Quick Start Guide
 
-### Launch Full System (Home Server)
+### Scenario 1: Enable Student Access to Appwrite (Recommended)
 
+This scenario allows Purdue students to access the Appwrite database without needing the API key.
+
+**Step 1: Start Appwrite**
 ```bash
-# 1. Start Appwrite
 cd ~/appwrite
 ./start.sh  # or: docker-compose up -d
-
-# 2. Start USSD/SMS Server
-cd ~/cloud_server/water-kiosk-ussd-server
-./start_server_with_mtn.sh
-
-# 3. Start ngrok tunnel
-ngrok start ussd  # Configured in ~/.config/ngrok/ngrok.yml
-
-# 4. (Optional) Start Analytics Dashboard
-cd ~/cloud_server/water-kiosk-analytics
-./start_analytics.sh
-
-# 5. (Optional) Start Customer Dashboard
-cd ~/cloud_server/water-kiosk-dashboard
-./start_dashboard.sh
+# Wait 30 seconds for Appwrite to fully initialize
 ```
 
-### Test USSD/SMS
+**Step 2: Start Appwrite Proxy Server**
 ```bash
+# Terminal 2
+cd ~/cloud_server/proxy_server
+./start_proxy.sh
+# Server will run on port 3000
+```
+
+**Step 3: Configure ngrok for Proxy Access**
+
+Update your `~/.config/ngrok/ngrok.yml` to expose the proxy:
+
+```yaml
+version: "2"
+authtoken: 31ZHaP8AMQieC1bVwW163tByBaq_3nu7JYfVeYszkcFaodspw
+
+tunnels:
+  ussd:
+    proto: http
+    addr: 5000
+
+  appwrite:
+    proto: http
+    addr: 80
+    request_header:
+      add:
+        - "X-Appwrite-Project: 689107c288885e90c039"
+
+  proxy:
+    proto: http
+    addr: 3000
+```
+
+**Step 4: Start ngrok for Proxy**
+```bash
+# Terminal 3
+ngrok start proxy
+# Note the ngrok URL provided (e.g., https://xxxxx.ngrok-free.app)
+```
+
+**Step 5: Share with Students**
+
+Students can now access Appwrite via:
+```bash
+# Get all customers (no API key needed!)
+curl https://YOUR_NGROK_URL/v1/databases/6864aed388d20c69a461/collections/customers/documents
+
+# Create a customer
+curl -X POST https://YOUR_NGROK_URL/v1/databases/6864aed388d20c69a461/collections/customers/documents \
+  -H "Content-Type: application/json" \
+  -d '{
+    "documentId": "unique()",
+    "data": {
+      "phone_number": "+254700000123",
+      "pin": "1234"
+    }
+  }'
+```
+
+See **Appwrite Proxy Server README** at `/home/jerrold/cloud_server/proxy_server/README.md` for complete API documentation.
+
+---
+
+### Scenario 2: Test USSD/SMS Server
+
+This scenario tests the USSD/SMS server that handles customer registration.
+
+**Step 1: Start Appwrite**
+```bash
+cd ~/appwrite
+./start.sh
+```
+
+**Step 2: Start USSD/SMS Server**
+```bash
+# Terminal 2
+cd ~/cloud_server/water-kiosk-ussd-server
+./start_server_with_mtn.sh
+# Server will run on port 5000
+```
+
+**Step 3: Start ngrok for USSD**
+```bash
+# Terminal 3
+ngrok start ussd
+# USSD server is now accessible at https://first-many-snake.ngrok-free.app
+```
+
+**Step 4: Test USSD**
+```bash
+# Simulate USSD request
 curl -X POST https://first-many-snake.ngrok-free.app/ \
   -d "sessionId=123&serviceCode=*123#&phoneNumber=+254700000000&text="
 ```
 
-### Test Hardware Server (Requires ngrok switch)
-```bash
-# Stop current ngrok tunnel
-# Update ngrok.yml to expose port 8080
-# Restart ngrok
+---
 
-curl -X POST https://first-many-snake.ngrok-free.app/dispense-verification \
+### Scenario 3: Full Development Environment
+
+Launch everything for full system testing.
+
+**Terminal 1: Appwrite**
+```bash
+cd ~/appwrite
+./start.sh
+```
+
+**Terminal 2: Proxy Server (for student access)**
+```bash
+cd ~/cloud_server/proxy_server
+./start_proxy.sh
+```
+
+**Terminal 3: USSD/SMS Server**
+```bash
+cd ~/cloud_server/water-kiosk-ussd-server
+./start_server_with_mtn.sh
+```
+
+**Terminal 4: Analytics Dashboard**
+```bash
+cd ~/cloud_server/water-kiosk-analytics
+./start_analytics.sh
+# Available at http://localhost:8082
+```
+
+**Terminal 5: Customer Dashboard**
+```bash
+cd ~/cloud_server/water-kiosk-dashboard
+./start_dashboard.sh
+# Available at http://localhost:8080/customer-dashboard.html
+```
+
+**Terminal 6: ngrok (choose what to expose)**
+```bash
+# Option A: For student proxy access
+ngrok start proxy
+
+# Option B: For USSD/SMS testing
+ngrok start ussd
+
+# Option C: For Appwrite direct access
+ngrok start appwrite
+```
+
+### Student Access to Appwrite Proxy
+
+Once you have the proxy server running with ngrok, share this information with students:
+
+**Endpoint:** `https://YOUR_NGROK_URL/v1/databases/6864aed388d20c69a461/collections/customers/documents`
+
+**Available Operations (No API Key Required):**
+
+1. **List all customers:**
+```bash
+curl https://YOUR_NGROK_URL/v1/databases/6864aed388d20c69a461/collections/customers/documents
+```
+
+2. **Get a specific customer:**
+```bash
+curl https://YOUR_NGROK_URL/v1/databases/6864aed388d20c69a461/collections/customers/documents/DOCUMENT_ID
+```
+
+3. **Create a customer:**
+```bash
+curl -X POST https://YOUR_NGROK_URL/v1/databases/6864aed388d20c69a461/collections/customers/documents \
   -H "Content-Type: application/json" \
-  -d '{"kiosk_id":"KIOSK001","user_id":"+254700000000","pin":"1234","volume_ml":500}'
+  -d '{
+    "documentId": "unique()",
+    "data": {
+      "phone_number": "+254700000123",
+      "pin": "1234",
+      "full_name": "Student Name",
+      "is_registered": true,
+      "active": true,
+      "credits": 100
+    }
+  }'
 ```
 
-### ngrok Commands Reference
-
-#### Start ngrok with configured tunnel (Recommended)
+4. **Update a customer:**
 ```bash
-# Starts the 'ussd' tunnel configured in ~/.config/ngrok/ngrok.yml
-# This exposes port 5000 to first-many-snake.ngrok-free.app
+curl -X PATCH https://YOUR_NGROK_URL/v1/databases/6864aed388d20c69a461/collections/customers/documents/DOCUMENT_ID \
+  -H "Content-Type: application/json" \
+  -d '{
+    "data": {
+      "credits": 50,
+      "active": false
+    }
+  }'
+```
+
+5. **Delete a customer:**
+```bash
+curl -X DELETE https://YOUR_NGROK_URL/v1/databases/6864aed388d20c69a461/collections/customers/documents/DOCUMENT_ID
+```
+
+**Security Benefits:**
+- ✅ Students never know the API key
+- ✅ Only `customers` collection is accessible
+- ✅ Full audit trail of all changes
+- ✅ Can be easily disabled by stopping the proxy
+
+See `/home/jerrold/cloud_server/proxy_server/README.md` for complete documentation.
+
+---
+
+### ngrok Tunnels Configuration Reference
+
+Your ngrok configuration supports three different tunnels. Configure in `~/.config/ngrok/ngrok.yml`:
+
+#### Available Tunnels
+
+You have three tunnels configured. Use one at a time:
+
+**For Student Appwrite Access (Recommended for development):**
+```bash
+ngrok start proxy
+# Exposes port 3000 (Appwrite Proxy Server)
+# Students can query database without API key
+```
+
+**For USSD/SMS Testing:**
+```bash
 ngrok start ussd
+# Exposes port 5000 (USSD/SMS Server)
+# Test customer registration via USSD/SMS
 ```
 
-#### Start ngrok with quick tunnel (Alternative)
+**For Appwrite Direct Access (if needed):**
 ```bash
-# Starts an unnamed tunnel on port 5000
-# Generates a random ngrok URL
-ngrok http 5000
+ngrok start appwrite
+# Exposes port 80 (Appwrite - with Project ID header auto-injected)
+# Direct Appwrite API access
 ```
 
-#### Switch to Hardware Server Testing
+#### Current ngrok Configuration
+
+Located at: `~/.config/ngrok/ngrok.yml`
+
+Complete configuration:
+```yaml
+version: "2"
+authtoken: 31ZHaP8AMQieC1bVwW163tByBaq_3nu7JYfVeYszkcFaodspw
+
+tunnels:
+  ussd:
+    proto: http
+    addr: 5000
+    domain: first-many-snake.ngrok-free.app
+
+  appwrite:
+    proto: http
+    addr: 80
+    domain: first-many-snake.ngrok-free.app
+    request_header:
+      add:
+        - "X-Appwrite-Project: 689107c288885e90c039"
+
+  proxy:
+    proto: http
+    addr: 3000
+```
+
+#### Switching Between Tunnels
+
 ```bash
-# 1. Stop current ngrok tunnel (Ctrl+C in ngrok terminal)
-# 2. Edit ngrok configuration
-nano ~/.config/ngrok/ngrok.yml
+# 1. Stop current tunnel (Ctrl+C in ngrok terminal)
+# 2. Start a different tunnel
+ngrok start proxy    # Switch to this
 
-# 3. Change the tunnel configuration:
-# From:
-#   addr: 5000
-# To:
-#   addr: 8080
+# 3. Verify it's running
+curl https://YOUR_NGROK_URL/
 
-# 4. Restart ngrok
-ngrok start ussd
-
-# 5. Note the new ngrok URL and update any external configurations
+# 4. Update students/external services with new URL if needed
 ```
 
 #### Verify ngrok is working
@@ -497,23 +727,6 @@ curl https://first-many-snake.ngrok-free.app/
 
 # Expected response: Status page from your running server (JSON)
 ```
-
-#### ngrok Configuration File
-Located at: `~/.config/ngrok/ngrok.yml`
-
-Current configuration:
-```yaml
-version: "2"
-authtoken: 31ZHaP8AMQieC1bVwW163tByBaq_3nu7JYfVeYszkcFaodspw
-
-tunnels:
-  ussd:
-    proto: http
-    addr: 5000                    # Currently: USSD/SMS Server
-    domain: first-many-snake.ngrok-free.app
-```
-
-To switch to hardware testing, change `addr: 5000` to `addr: 8080`
 
 #### Troubleshooting ngrok
 
