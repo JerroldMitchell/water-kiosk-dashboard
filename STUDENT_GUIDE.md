@@ -55,6 +55,62 @@ curl https://first-many-snake.ngrok-free.app/v1/databases/6864aed388d20c69a461/c
 
 **Response:** A JSON list with all your customers.
 
+⚠️ **Important: Appwrite Pagination Limit**
+
+Appwrite returns a **maximum of 25 documents per request**, even if you have more in the database. The response includes a `total` field showing the actual total count, but only 25 documents in the `documents` array.
+
+**Check total count:**
+```bash
+curl https://first-many-snake.ngrok-free.app/v1/databases/6864aed388d20c69a461/collections/customers/documents \
+  | jq '.total'  # Shows actual total, e.g., 50
+```
+
+**Fetch all customers using pagination:**
+
+```bash
+# Fetch batch 1 (documents 0-24)
+curl 'https://first-many-snake.ngrok-free.app/v1/databases/6864aed388d20c69a461/collections/customers/documents?limit=25&offset=0'
+
+# Fetch batch 2 (documents 25-49)
+curl 'https://first-many-snake.ngrok-free.app/v1/databases/6864aed388d20c69a461/collections/customers/documents?limit=25&offset=25'
+
+# Fetch batch 3 (documents 50-74)
+curl 'https://first-many-snake.ngrok-free.app/v1/databases/6864aed388d20c69a461/collections/customers/documents?limit=25&offset=50'
+```
+
+**JavaScript example with pagination:**
+```javascript
+async function fetchAllCustomers() {
+  const endpoint = 'https://first-many-snake.ngrok-free.app';
+  const dbId = '6864aed388d20c69a461';
+  const collectionId = 'customers';
+
+  let allDocuments = [];
+  let offset = 0;
+  const limit = 25;
+  let total = null;
+
+  while (true) {
+    const url = `${endpoint}/v1/databases/${dbId}/collections/${collectionId}/documents?limit=${limit}&offset=${offset}`;
+    const response = await fetch(url);
+    const data = await response.json();
+
+    // Store total on first request
+    if (total === null) total = data.total;
+
+    // Add this batch to our collection
+    allDocuments = allDocuments.concat(data.documents || []);
+
+    // Stop if we have all documents
+    if (allDocuments.length >= total || (data.documents || []).length === 0) break;
+
+    offset += limit;
+  }
+
+  return allDocuments; // Now contains ALL customers
+}
+```
+
 ### 3. READ - Get a Specific Customer
 
 Already have a customer ID? Grab just that one:
