@@ -169,24 +169,6 @@
             box-shadow: 0 4px 6px rgba(0,0,0,0.1);
             display: none;
         }
-
-        .results-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 1.5rem;
-        }
-
-        .result-count {
-            font-size: 0.9rem;
-            color: #666;
-            font-weight: 500;
-        }
-
-        #resultsContainer {
-            max-height: 70vh;
-            overflow-y: auto;
-        }
         
         .customer-card {
             border: 1px solid #e1e5e9;
@@ -354,10 +336,7 @@
         </div>
         
         <div class="results-section" id="resultsSection">
-            <div class="results-header">
-                <h2>Search Results</h2>
-                <div class="result-count" id="resultCount"></div>
-            </div>
+            <h2>Search Results</h2>
             <div id="resultsContainer"></div>
         </div>
     </div>
@@ -393,49 +372,38 @@
         // Search functionality
         document.getElementById('searchForm').addEventListener('submit', async function(e) {
             e.preventDefault();
-
+            
             const phoneSearch = document.getElementById('phoneSearch').value.trim();
             const accountSearch = document.getElementById('accountSearch').value.trim();
-
-            console.log('Form submitted - phoneSearch:', phoneSearch, 'accountSearch:', accountSearch);
-
+            
             if (!phoneSearch && !accountSearch) {
                 showError('Please enter a phone number or account ID to search.');
                 return;
             }
-
+            
             showLoading();
-
+            
             try {
                 let customers = [];
-
+                
                 if (phoneSearch) {
                     const normalizedPhone = normalizePhone(phoneSearch);
-                    console.log('Normalized phone:', normalizedPhone);
                     const phoneResults = await searchByPhone(normalizedPhone);
-                    console.log(`Got ${phoneResults.length} results from phone search`);
                     customers = customers.concat(phoneResults);
-                    console.log(`Total customers after phone search: ${customers.length}`);
                 }
-
+                
                 if (accountSearch) {
                     const accountResults = await searchByAccount(accountSearch);
-                    console.log(`Got ${accountResults.length} results from account search`);
                     customers = customers.concat(accountResults);
-                    console.log(`Total customers after account search: ${customers.length}`);
                 }
-
-                // Remove duplicates by ID
-                // Note: The proxy server has a bug where offset parameter is ignored,
-                // so we get duplicate results. This filter removes them properly.
-                const uniqueCustomers = customers.filter((customer, index, self) =>
+                
+                // Remove duplicates
+                const uniqueCustomers = customers.filter((customer, index, self) => 
                     index === self.findIndex(c => c.$id === customer.$id)
                 );
-
-                console.log(`Total results before dedup: ${customers.length}, after dedup: ${uniqueCustomers.length}`);
-
+                
                 displayResults(uniqueCustomers);
-
+                
             } catch (error) {
                 console.error('Search error:', error);
                 showError('Search failed. Please try again.');
@@ -491,12 +459,13 @@
                 console.log('Searching for phone:', phone);
 
                 // NOTE FOR STUDENTS:
-                // We fetch ALL documents (using pagination) and filter on the client side.
+                // The proxy server doesn't support Appwrite's Query API,
+                // so we fetch ALL documents and filter on the client side.
                 // This is fine for small datasets like ours, but for production
-                // with thousands of customers, you'd want server-side query support!
+                // with thousands of customers, you'd want to add query support
+                // to the proxy server!
 
                 const allCustomers = await fetchAllCustomers();
-                console.log(`Total customers available for search: ${allCustomers.length}`);
 
                 if (phone.includes('*')) {
                     // Wildcard search - filter by prefix
@@ -517,12 +486,12 @@
                         );
                     }
 
-                    console.log(`Phone search found ${results.length} results:`, results);
+                    console.log('Phone search results:', results);
                     return results;
                 } else {
                     // Exact match
                     const results = allCustomers.filter(c => c.phone_number === phone);
-                    console.log(`Phone search found ${results.length} exact match:`, results);
+                    console.log('Phone search results:', results);
                     return results;
                 }
             } catch (error) {
@@ -531,15 +500,13 @@
                 return [];
             }
         }
-
+        
         async function searchByAccount(accountId) {
             try {
                 console.log('Searching for account:', accountId);
                 const allCustomers = await fetchAllCustomers();
-                console.log(`Total customers available for search: ${allCustomers.length}`);
-
                 const results = allCustomers.filter(c => c.account_id === accountId);
-                console.log(`Account search found ${results.length} results:`, results);
+                console.log('Account search results:', results);
                 return results;
             } catch (error) {
                 console.error('Account search error:', error);
@@ -555,37 +522,58 @@
         // 2. Use fetch() - no authentication headers needed!
         // 3. The proxy automatically adds the Appwrite auth headers
         // 4. Parse the response as JSON
-        // 5. Use pagination (limit and offset) to fetch all documents
         async function fetchAllCustomers() {
             try {
-                // NOTE: The proxy server has a bug where the offset parameter is ignored.
-                // As a workaround, we request a large limit in a single call.
-                // This returns all documents without pagination.
-                const url = `${PROXY_ENDPOINT}/v1/databases/${DATABASE_ID}/collections/${CUSTOMERS_COLLECTION_ID}/documents?limit=100`;
+                const allDocuments = [];
+                let offset = 0;
+                const limit = 25; // Appwrite's hard limit
+                let total = null;
 
-                console.log('Fetching from proxy:', url);
+                // Keep fetching until we have all documents
+                while (true) {
+                    // Build the API endpoint URL with offset and limit
+                    // Appwrite has a 25-document hard cap, so we fetch in batches
+                    const url = `${PROXY_ENDPOINT}/v1/databases/${DATABASE_ID}/collections/${CUSTOMERS_COLLECTION_ID}/documents?limit=${limit}&offset=${offset}`;
 
-                // Simple fetch call - no auth needed!
-                // The proxy handles authentication behind the scenes
-                // Note: We add ngrok-skip-browser-warning header to bypass ngrok's interstitial warning
-                const response = await fetch(url, {
-                    headers: {
-                        'ngrok-skip-browser-warning': 'true'
+                    console.log('Fetching from proxy:', url);
+
+                    // Simple fetch call - no auth needed!
+                    // The proxy handles authentication behind the scenes
+                    // Note: We add ngrok-skip-browser-warning header to bypass ngrok's interstitial warning
+                    const response = await fetch(url, {
+                        headers: {
+                            'ngrok-skip-browser-warning': 'true'
+                        }
+                    });
+
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
                     }
-                });
 
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
+                    const data = await response.json();
+
+                    // Store the total count on first request
+                    if (total === null) {
+                        total = data.total || 0;
+                        console.log(`Total customers in database: ${total}`);
+                    }
+
+                    // Add these documents to our collection
+                    const docsInThisBatch = data.documents || [];
+                    console.log(`Batch at offset ${offset}: received ${docsInThisBatch.length} documents`);
+                    allDocuments.push(...docsInThisBatch);
+
+                    // Check if we've fetched all documents
+                    // Stop if: we have all documents OR this batch was empty
+                    if (allDocuments.length >= total || docsInThisBatch.length === 0) {
+                        break;
+                    }
+
+                    // Move to next page
+                    offset += limit;
                 }
 
-                const data = await response.json();
-
-                // The proxy returns: { documents: [...], total: n }
-                const allDocuments = data.documents || [];
-                const total = data.total || 0;
-
-                console.log(`Fetched ${allDocuments.length} documents (total in database: ${total})`);
-
+                console.log(`Fetched ${allDocuments.length} total documents`);
                 return allDocuments;
             } catch (error) {
                 console.error('Error fetching customers:', error);
@@ -596,16 +584,13 @@
         function displayResults(customers) {
             const resultsContainer = document.getElementById('resultsContainer');
             const resultsSection = document.getElementById('resultsSection');
-            const resultCount = document.getElementById('resultCount');
-
+            
             if (customers.length === 0) {
                 resultsContainer.innerHTML = '<div class="no-results">No customers found matching your search criteria.</div>';
-                resultCount.textContent = '0 results';
             } else {
                 resultsContainer.innerHTML = customers.map(customer => createCustomerCard(customer)).join('');
-                resultCount.textContent = `${customers.length} result${customers.length !== 1 ? 's' : ''}`;
             }
-
+            
             resultsSection.style.display = 'block';
         }
         
