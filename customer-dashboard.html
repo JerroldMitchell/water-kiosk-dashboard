@@ -530,7 +530,12 @@
 
                 // Simple fetch call - no auth needed!
                 // The proxy handles authentication behind the scenes
-                const response = await fetch(url);
+                // Note: We add ngrok-skip-browser-warning header to bypass ngrok's interstitial warning
+                const response = await fetch(url, {
+                    headers: {
+                        'ngrok-skip-browser-warning': 'true'
+                    }
+                });
 
                 if (!response.ok) {
                     throw new Error(`HTTP error! status: ${response.status}`);
