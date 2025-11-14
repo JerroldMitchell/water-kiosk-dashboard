@@ -33,7 +33,9 @@ import socketserver
 import os
 
 # Change to the directory containing the HTML file
-os.chdir('/home/jerrold/cloud_server/water-kiosk-dashboard')
+# Use the script's directory, so it works from any path
+script_dir = os.path.dirname(os.path.abspath(__file__))
+os.chdir(script_dir)
 
 PORT = 8080
 Handler = http.server.SimpleHTTPRequestHandler
