@@ -526,7 +526,10 @@
             try {
                 // Build the API endpoint URL
                 // Format: https://proxy.domain/v1/databases/{id}/collections/{name}/documents
-                const url = `${PROXY_ENDPOINT}/v1/databases/${DATABASE_ID}/collections/${CUSTOMERS_COLLECTION_ID}/documents`;
+                // NOTE: Appwrite defaults to returning only 25 documents if limit is not specified.
+                // We set limit=100 to get up to 100 documents in one request.
+                // For databases with more than 100 documents, you'd need to implement pagination.
+                const url = `${PROXY_ENDPOINT}/v1/databases/${DATABASE_ID}/collections/${CUSTOMERS_COLLECTION_ID}/documents?limit=100`;
 
                 console.log('Fetching from proxy:', url);
 
@@ -547,6 +550,7 @@
 
                 // The proxy returns: { documents: [...], total: n }
                 // We extract just the documents array
+                console.log(`Fetched ${data.documents.length} of ${data.total} total customers`);
                 return data.documents || [];
             } catch (error) {
                 console.error('Error fetching customers:', error);
