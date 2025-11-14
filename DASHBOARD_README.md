@@ -15,25 +15,36 @@ It's ready to use and fully functional!
 
 ## Quick Start
 
-### 1. Start the Proxy Server
+### For Students (What You Need to Do)
 
+If Jerrold is hosting the proxy server, you just need to:
+
+```bash
+git clone https://github.com/JerroldMitchell/water-kiosk-dashboard.git
+cd water-kiosk-dashboard
+python3 serve_dashboard.py
+```
+
+Then visit: **http://localhost:8080/customer-dashboard.html**
+
+Done! The dashboard automatically connects to Jerrold's proxy server via ngrok.
+
+### For Jerrold (Full Setup if Running Everything)
+
+If you're setting this up from scratch:
+
+**1. Start the Proxy Server**
 ```bash
 cd /home/jerrold/cloud_server/proxy_server
 ./start_proxy.sh
 ```
 
-This starts the proxy on port 3000. The proxy automatically adds Appwrite authentication to all requests.
-
-### 2. Start ngrok (if accessing remotely)
-
+**2. Start ngrok**
 ```bash
 ngrok start proxy
 ```
 
-This exposes the proxy server to the internet via a tunnel.
-
-### 3. Start the Dashboard Server
-
+**3. Start the Dashboard Server**
 ```bash
 cd /home/jerrold/cloud_server/water-kiosk-dashboard
 python3 serve_dashboard.py
