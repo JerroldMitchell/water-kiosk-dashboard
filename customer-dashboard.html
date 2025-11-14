@@ -524,34 +524,57 @@
         // 4. Parse the response as JSON
         async function fetchAllCustomers() {
             try {
-                // Build the API endpoint URL
-                // Format: https://proxy.domain/v1/databases/{id}/collections/{name}/documents
-                // NOTE: Appwrite defaults to returning only 25 documents if limit is not specified.
-                // We set limit=100 to get up to 100 documents in one request.
-                // For databases with more than 100 documents, you'd need to implement pagination.
-                const url = `${PROXY_ENDPOINT}/v1/databases/${DATABASE_ID}/collections/${CUSTOMERS_COLLECTION_ID}/documents?limit=100`;
+                const allDocuments = [];
+                let offset = 0;
+                const limit = 25; // Appwrite's hard limit
+                let total = null;
 
-                console.log('Fetching from proxy:', url);
+                // Keep fetching until we have all documents
+                while (true) {
+                    // Build the API endpoint URL with offset and limit
+                    // Appwrite has a 25-document hard cap, so we fetch in batches
+                    const url = `${PROXY_ENDPOINT}/v1/databases/${DATABASE_ID}/collections/${CUSTOMERS_COLLECTION_ID}/documents?limit=${limit}&offset=${offset}`;
 
-                // Simple fetch call - no auth needed!
-                // The proxy handles authentication behind the scenes
-                // Note: We add ngrok-skip-browser-warning header to bypass ngrok's interstitial warning
-                const response = await fetch(url, {
-                    headers: {
-                        'ngrok-skip-browser-warning': 'true'
+                    console.log('Fetching from proxy:', url);
+
+                    // Simple fetch call - no auth needed!
+                    // The proxy handles authentication behind the scenes
+                    // Note: We add ngrok-skip-browser-warning header to bypass ngrok's interstitial warning
+                    const response = await fetch(url, {
+                        headers: {
+                            'ngrok-skip-browser-warning': 'true'
+                        }
+                    });
+
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
                     }
-                });
 
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
+                    const data = await response.json();
+
+                    // Store the total count on first request
+                    if (total === null) {
+                        total = data.total || 0;
+                        console.log(`Total customers in database: ${total}`);
+                    }
+
+                    // Add these documents to our collection
+                    const docsInThisBatch = data.documents || [];
+                    console.log(`Batch at offset ${offset}: received ${docsInThisBatch.length} documents`);
+                    allDocuments.push(...docsInThisBatch);
+
+                    // Check if we've fetched all documents
+                    // Stop if: we have all documents OR this batch was empty
+                    if (allDocuments.length >= total || docsInThisBatch.length === 0) {
+                        break;
+                    }
+
+                    // Move to next page
+                    offset += limit;
                 }
 
-                const data = await response.json();
-
-                // The proxy returns: { documents: [...], total: n }
-                // We extract just the documents array
-                console.log(`Fetched ${data.documents.length} of ${data.total} total customers`);
-                return data.documents || [];
+                console.log(`Fetched ${allDocuments.length} total documents`);
+                return allDocuments;
             } catch (error) {
                 console.error('Error fetching customers:', error);
                 throw error;
