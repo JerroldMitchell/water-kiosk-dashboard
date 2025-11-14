@@ -59,5 +59,8 @@ print("🛑 Press Ctrl+C to stop this server")
 print("=" * 60)
 print()
 
+# Enable SO_REUSEADDR to allow quick restart without TIME_WAIT delays
+socketserver.TCPServer.allow_reuse_address = True
+
 with socketserver.TCPServer(("", PORT), Handler) as httpd:
     httpd.serve_forever()
